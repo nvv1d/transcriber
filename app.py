@@ -15,6 +15,33 @@ st.set_page_config(
     layout="centered"
 )
 
+# Force light mode and add Nyan Cat cursor
+st.markdown("""
+    <style>
+    /* Force light mode */
+    [data-testid="stAppViewContainer"] {
+        background-color: white !important;
+    }
+    [data-testid="stHeader"] {
+        background-color: white !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #f0f2f6 !important;
+    }
+    section[data-testid="stSidebar"] > div {
+        background-color: #f0f2f6 !important;
+    }
+    .main {
+        background-color: white !important;
+    }
+    
+    /* Nyan Cat cursor */
+    * {
+        cursor: url(https://cur.cursors-4u.net/nature/nat-10/nat927.ani), url(https://cur.cursors-4u.net/nature/nat-10/nat927.png), auto !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Title and description
 st.title("🎤 Audio Transcription Tool")
 st.markdown("""
@@ -178,6 +205,16 @@ st.markdown("""
         font-family: 'Vazirmatn', 'Tahoma', sans-serif;
         letter-spacing: 0.5px;
     }
+    
+    .iframe-wrapper {
+        margin-top: 15px;
+        display: inline-block;
+    }
+    
+    .iframe-wrapper iframe {
+        border: none;
+        background: transparent;
+    }
     </style>
     
     <div class="footer-container">
@@ -192,6 +229,8 @@ st.markdown("""
             <div class="dot"></div>
             <div class="line"></div>
         </div>
-        <iframe width="110" height="200" src="https://www.myinstants.com/instant/i-got-you-homie-mp3-47990/embed/" frameborder="0" scrolling="no"></iframe>
+        <div class="iframe-wrapper">
+            <iframe width="110" height="250" src="https://www.myinstants.com/instant/i-got-you-homie-mp3-47990/embed/" frameborder="0" scrolling="no"></iframe>
+        </div>
     </div>
 """, unsafe_allow_html=True)

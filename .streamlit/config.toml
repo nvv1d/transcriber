@@ -1,5 +1,7 @@
 [theme]
 base = "light"
+primaryColor = "#ff4b4b"
 
 [client]
-toolbarMode = "minimal"
+# This hides the 'Deploy' button and developer menu by default
+toolbarMode = "viewer"

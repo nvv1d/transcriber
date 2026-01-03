@@ -15,7 +15,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Force light mode and add Nyan Cat cursor
+# Force light mode and add custom cursor
 st.markdown("""
     <style>
     /* Force light mode */
@@ -35,9 +35,34 @@ st.markdown("""
         background-color: white !important;
     }
     
-    /* Nyan Cat cursor */
+    /* Force light mode on file uploader */
+    [data-testid="stFileUploader"] {
+        background-color: white !important;
+    }
+    [data-testid="stFileUploader"] > div {
+        background-color: white !important;
+    }
+    [data-testid="stFileUploadDropzone"] {
+        background-color: #f0f2f6 !important;
+    }
+    
+    /* Hide Streamlit branding and bottom elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden;}
+    [data-testid="stDecoration"] {visibility: hidden;}
+    [data-testid="stStatusWidget"] {visibility: hidden;}
+    .stDeployButton {display: none;}
+    
+    /* Custom cursor */
     * {
         cursor: url(http://www.rw-designer.com/cursor-extern.php?id=170394), auto !important;
+    }
+    
+    /* Force text visibility */
+    .stMarkdown, p, h1, h2, h3, label {
+        color: #000000 !important;
     }
     </style>
 """, unsafe_allow_html=True)

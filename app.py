@@ -37,7 +37,7 @@ st.markdown("""
     
     /* Nyan Cat cursor */
     * {
-        cursor: url(https://cur.cursors-4u.net/nature/nat-10/nat927.ani), url(https://cur.cursors-4u.net/nature/nat-10/nat927.png), auto !important;
+        cursor: url(http://www.rw-designer.com/cursor-extern.php?id=170394), auto !important;
     }
     </style>
 """, unsafe_allow_html=True)

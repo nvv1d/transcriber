@@ -8,32 +8,81 @@ from docx import Document
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import Pt
 
-# Page configuration
+# 1. Page Configuration
 st.set_page_config(
     page_title="Audio Transcription Tool",
     page_icon="🎤",
     layout="centered"
 )
 
-# --- HIDE STREAMLIT UI ELEMENTS ---
-hide_st_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
-# ----------------------------------
+# 2. BRUTAL UI REMOVAL & OVERLAY
+# This script targets the top-right menu and creates a matching #ff4b4b bar at the bottom
+st.markdown("""
+    <script>
+    const observer = new MutationObserver((mutations) => {
+        const badge = document.querySelector('a[class*="_viewerBadge"]');
+        const profile = document.querySelector('div[class*="_profileContainer"]');
+        const toolbar = document.querySelector('div[data-testid="stToolbar"]');
+        const footer = document.querySelector('footer');
 
-# Title and description
+        if (badge) badge.remove();
+        if (profile) profile.remove();
+        if (toolbar) toolbar.remove();
+        if (footer) footer.remove();
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    </script>
+    
+    <style>
+    /* Hide standard elements */
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    
+    /* Definitive selectors for Top-Right Deploy/Toolbar */
+    div[data-testid="stToolbar"] { display: none !important; }
+    div[data-testid="stDecoration"] { display: none !important; }
+    div[data-testid="stStatusWidget"] { visibility: hidden !important; }
+
+    /* The Brutal Overlay Bar */
+    /* Matches your primaryColor #ff4b4b to hide the profile avatar */
+    .brutal-overlay {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        background-color: #ff4b4b;
+        z-index: 999999;
+    }
+    
+    /* Ensure app content has space at the bottom so it's not hidden by the bar */
+    .main .block-container {
+        padding-bottom: 80px !important;
+    }
+    
+    /* Set RTL for Farsi text display */
+    .stMarkdown, .stText {
+        direction: rtl;
+        text-align: right;
+    }
+    </style>
+    
+    <div class="brutal-overlay"></div>
+""", unsafe_allow_html=True)
+
+# 3. Title and description
 st.title("🎤 Audio Transcription Tool")
 st.markdown("""
 Upload an audio file (MP4, MP3, WAV, M4A) and get an automatic transcription in Persian (Farsi).
 The transcription will be saved as a Word document.
 """)
 
-# File uploader
+# 4. File uploader
 uploaded_file = st.file_uploader(
     "Choose an audio file",
     type=["mp4", "mp3", "wav", "m4a"],
@@ -44,45 +93,38 @@ def transcribe_audio(audio_file):
     """
     Transcribes the uploaded audio file and returns a DOCX document.
     """
-    # Setup recognizer
     recognizer = sr.Recognizer()
     recognizer.energy_threshold = 300
     
-    # Create Word document
     doc = Document()
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Tahoma'
     font.size = Pt(11)
     
-    # Save uploaded file temporarily
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(audio_file.name)[1]) as tmp_file:
         tmp_file.write(audio_file.getvalue())
         tmp_path = tmp_file.name
     
     try:
-        # Load and process audio
         st.info("🎧 Loading audio file...")
         audio = AudioSegment.from_file(tmp_path)
         audio = audio.set_channels(1).set_frame_rate(16000)
         
-        chunk_length_ms = 30 * 1000  # 30 seconds
+        chunk_length_ms = 30 * 1000  
         total_length_ms = len(audio)
         total_chunks = math.ceil(total_length_ms / chunk_length_ms)
         
         st.success(f"🚀 Starting transcription of {total_chunks} chunk(s)...")
         
-        # Progress bar
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        # Process each chunk
         for i in range(total_chunks):
             start_ms = i * chunk_length_ms
             end_ms = start_ms + chunk_length_ms
             chunk = audio[start_ms:end_ms]
             
-            # Create temporary WAV file for the chunk
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as chunk_file:
                 chunk.export(chunk_file.name, format="wav")
                 
@@ -93,7 +135,7 @@ def transcribe_audio(audio_file):
                         text = recognizer.recognize_google(audio_data, language='fa-IR')
                         status_text.text(f"[{i+1}/{total_chunks}] Transcribed: {text[:50]}...")
                     except sr.UnknownValueError:
-                        status_text.text(f"[{i+1}/{total_chunks}] Could not understand audio (silence?).")
+                        status_text.text(f"[{i+1}/{total_chunks}] Could not understand audio.")
                     except sr.RequestError as e:
                         status_text.text(f"[{i+1}/{total_chunks}] API request failed: {e}")
                     
@@ -101,27 +143,22 @@ def transcribe_audio(audio_file):
                         p = doc.add_paragraph(text)
                         p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
                 
-                # Clean up chunk file
                 os.unlink(chunk_file.name)
             
-            # Update progress
             progress_bar.progress((i + 1) / total_chunks)
         
-        # Save document to temporary file
         output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
         doc.save(output_path)
-        
-        # Clean up original audio file
         os.unlink(tmp_path)
-        
         return output_path
         
     except Exception as e:
-        os.unlink(tmp_path)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
         st.error(f"❌ An error occurred during processing: {e}")
         return None
 
-# Process button and transcription
+# 5. Process button and transcription
 if uploaded_file is not None:
     if st.button("🎯 Start Transcription", type="primary"):
         with st.spinner("Processing..."):
@@ -129,8 +166,6 @@ if uploaded_file is not None:
             
             if output_file:
                 st.success("✅ Processing Complete!")
-                
-                # Read the file for download
                 with open(output_file, "rb") as file:
                     st.download_button(
                         label="📥 Download Transcription (DOCX)",
@@ -138,13 +173,10 @@ if uploaded_file is not None:
                         file_name=f"{os.path.splitext(uploaded_file.name)[0]}_transcribed.docx",
                         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     )
-                
-                # Clean up output file
                 os.unlink(output_file)
 
-# Footer with tip and dedication
+# 6. Footer with tip and dedication
 st.markdown("---")
-
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400&display=swap');
@@ -152,6 +184,9 @@ st.markdown("""
     .footer-container {
         padding: 20px 0;
         text-align: center;
+        /* Ensure footer is above the brutal overlay but styled correctly */
+        position: relative;
+        z-index: 10;
     }
     
     .tip-text {

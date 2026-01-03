@@ -15,31 +15,37 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. Brutal UI Removal (Updated with GitHub #9579 definitive selectors)
+# 2. Brutal UI Removal (JavaScript + CSS)
+# Targets the Viewer Badge and Profile Container specifically
 st.markdown("""
-    <style>
-    /* 1. Hide the top toolbar/deploy button */
-    div[data-testid="stToolbar"] {
-        display: none !important;
-    }
-    
-    /* 2. Hide the colored line at the top */
-    div[data-testid="stDecoration"] {
-        display: none !important;
-    }
-    
-    /* 3. Hide the status widget (running icon/connection banner) */
-    div[data-testid="stStatusWidget"] {
-        visibility: hidden !important;
-    }
+    <script>
+    const observer = new MutationObserver((mutations) => {
+        const badge = document.querySelector('a[class*="_viewerBadge"]');
+        const profile = document.querySelector('div[class*="_profileContainer"]');
+        const toolbar = document.querySelector('div[data-testid="stToolbar"]');
+        const footer = document.querySelector('footer');
 
-    /* 4. Hide Footer and Profile Badges */
+        if (badge) badge.remove();
+        if (profile) profile.remove();
+        if (toolbar) toolbar.remove();
+        if (footer) footer.remove();
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    </script>
+    <style>
+    /* CSS Safeguards */
+    #MainMenu {visibility: hidden !important;}
     footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
     [class*="_viewerBadge"], [class*="_profileContainer"] {
         display: none !important;
+        opacity: 0 !important;
     }
-
-    /* Set RTL for Farsi text display */
+    /* Set RTL for Farsi text display in the app */
     .stMarkdown, .stText {
         direction: rtl;
         text-align: right;
@@ -62,6 +68,9 @@ uploaded_file = st.file_uploader(
 )
 
 def transcribe_audio(audio_file):
+    """
+    Transcribes the uploaded audio file and returns a DOCX document path.
+    """
     recognizer = sr.Recognizer()
     recognizer.energy_threshold = 300
     
@@ -80,7 +89,7 @@ def transcribe_audio(audio_file):
         audio = AudioSegment.from_file(tmp_path)
         audio = audio.set_channels(1).set_frame_rate(16000)
         
-        chunk_length_ms = 30 * 1000 
+        chunk_length_ms = 30 * 1000  # 30-second chunks
         total_length_ms = len(audio)
         total_chunks = math.ceil(total_length_ms / chunk_length_ms)
         
@@ -103,7 +112,7 @@ def transcribe_audio(audio_file):
                         text = recognizer.recognize_google(audio_data, language='fa-IR')
                         status_text.text(f"[{i+1}/{total_chunks}] Transcribed: {text[:50]}...")
                     except sr.UnknownValueError:
-                        status_text.text(f"[{i+1}/{total_chunks}] Silence or unrecognized.")
+                        status_text.text(f"[{i+1}/{total_chunks}] Silence or unrecognized audio.")
                         text = ""
                     except sr.RequestError as e:
                         status_text.text(f"[{i+1}/{total_chunks}] API Error: {e}")
@@ -112,7 +121,9 @@ def transcribe_audio(audio_file):
                     if text:
                         p = doc.add_paragraph(text)
                         p.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+                
                 os.unlink(chunk_file.name)
+            
             progress_bar.progress((i + 1) / total_chunks)
         
         output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".docx").name
@@ -121,7 +132,8 @@ def transcribe_audio(audio_file):
         return output_path
         
     except Exception as e:
-        if os.path.exists(tmp_path): os.unlink(tmp_path)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
         st.error(f"❌ Error: {e}")
         return None
 
@@ -130,6 +142,7 @@ if uploaded_file is not None:
     if st.button("🎯 Start Transcription", type="primary"):
         with st.spinner("Processing..."):
             output_file = transcribe_audio(uploaded_file)
+            
             if output_file:
                 st.success("✅ Processing Complete!")
                 with open(output_file, "rb") as file:

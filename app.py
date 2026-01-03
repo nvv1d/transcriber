@@ -15,61 +15,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# Force light mode and add custom cursor
-st.markdown("""
-    <style>
-    /* Force light mode */
-    [data-testid="stAppViewContainer"],
-    [data-testid="stApp"],
-    .main,
-    section[data-testid="stMain"] {
-        background-color: white !important;
-    }
-    
-    [data-testid="stHeader"] {
-        background-color: white !important;
-    }
-    
-    /* Force light mode on ALL file uploader elements */
-    [data-testid="stFileUploader"],
-    [data-testid="stFileUploader"] > div,
-    [data-testid="stFileUploadDropzone"],
-    [data-testid="stFileUploadDropzone"] > div,
-    .uploadedFile,
-    .uploadedFileName {
-        background-color: #f0f2f6 !important;
-        color: #000000 !important;
-    }
-    
-    /* Hide ALL Streamlit UI elements */
-    #MainMenu {display: none !important; visibility: hidden !important;}
-    footer {display: none !important; visibility: hidden !important;}
-    header {display: none !important; visibility: hidden !important;}
-    [data-testid="stToolbar"] {display: none !important; visibility: hidden !important;}
-    [data-testid="stDecoration"] {display: none !important; visibility: hidden !important;}
-    [data-testid="stStatusWidget"] {display: none !important; visibility: hidden !important;}
-    .stDeployButton {display: none !important; visibility: hidden !important;}
-    button[kind="header"] {display: none !important; visibility: hidden !important;}
-    [data-testid="stAppViewBlockContainer"] > div:first-child {display: none !important;}
-    
-    /* Force ALL text to be black */
-    .stMarkdown, .stMarkdown p, .stMarkdown div,
-    p, h1, h2, h3, h4, h5, h6, 
-    label, span, div, 
-    [data-testid="stMarkdownContainer"],
-    [data-testid="stText"],
-    .uploadMessage,
-    small {
-        color: #000000 !important;
-    }
-    
-    /* Custom cursor */
-    *, body, html {
-        cursor: url(http://www.rw-designer.com/cursor-extern.php?id=170394), auto !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # Title and description
 st.title("🎤 Audio Transcription Tool")
 st.markdown("""
@@ -233,16 +178,6 @@ st.markdown("""
         font-family: 'Vazirmatn', 'Tahoma', sans-serif;
         letter-spacing: 0.5px;
     }
-    
-    .iframe-wrapper {
-        margin-top: 15px;
-        display: inline-block;
-    }
-    
-    .iframe-wrapper iframe {
-        border: none;
-        background: transparent;
-    }
     </style>
     
     <div class="footer-container">
@@ -257,8 +192,6 @@ st.markdown("""
             <div class="dot"></div>
             <div class="line"></div>
         </div>
-        <div class="iframe-wrapper">
-            <iframe width="110" height="250" src="https://www.myinstants.com/instant/i-got-you-homie-mp3-47990/embed/" frameborder="0" scrolling="no"></iframe>
-        </div>
+        <iframe width="110" height="200" src="https://www.myinstants.com/instant/i-got-you-homie-mp3-47990/embed/" frameborder="0" scrolling="no"></iframe>
     </div>
 """, unsafe_allow_html=True)

@@ -1,0 +1,16 @@
+app.py
+requirements.txt
+packages.txt
+CHANGELOG.md
+.git
+.gitignore
+*.md
+!SETUP.md
+node_modules
+.next
+build
+dist
+.env
+.env.local
+.DS_Store
+*.log

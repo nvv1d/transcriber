@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API = "https://api.telegram.org";
-const webhookUrl = body.webhookUrl || "https://transcriber-nine-steel.vercel.app/api/webhook";
+const WEBHOOK_URL = "https://transcriber-nine-steel.vercel.app/api/webhook";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     if (!BOT_TOKEN) {
       return NextResponse.json(
@@ -13,18 +13,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json().catch(() => ({}));
-    const origin = request.headers.get("origin") || request.headers.get("host");
-    const protocol = origin?.includes("localhost") ? "http" : "https";
-    const webhookUrl = body.webhookUrl || `${protocol}://${origin}/api/webhook`;
-
     const response = await fetch(
       `${TELEGRAM_API}/bot${BOT_TOKEN}/setWebhook`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          url: webhookUrl,
+          url: WEBHOOK_URL,
           allowed_updates: ["message", "callback_query"],
         }),
       }
@@ -39,7 +34,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       message: "Webhook set successfully",
-      webhookUrl: webhookUrl,
+      webhookUrl: WEBHOOK_URL,
     });
   } catch (error) {
     console.error("Webhook setup error:", error);
@@ -50,7 +45,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     if (!BOT_TOKEN) {
       return NextResponse.json(
@@ -64,14 +59,11 @@ export async function GET(request: NextRequest) {
     );
     const infoData = await infoResponse.json();
 
-    const origin = request.headers.get("host");
-    const expectedUrl = `https://${origin}/api/webhook`;
-
     return NextResponse.json({
       currentWebhook: infoData.result,
-      expectedUrl: expectedUrl,
-      isConfigured: infoData.result?.url === expectedUrl,
-      instructions: infoData.result?.url 
+      expectedUrl: WEBHOOK_URL,
+      isConfigured: infoData.result?.url === WEBHOOK_URL,
+      instructions: infoData.result?.url
         ? "Webhook is configured. Send POST to this endpoint to update it."
         : "Webhook not set. Send POST to this endpoint to configure it.",
     });

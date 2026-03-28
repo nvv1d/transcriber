@@ -2,63 +2,60 @@
 
 Welcome! Your Python Streamlit audio transcription app has been transformed into a **Telegram Bot** running on Vercel. This document will guide you through the next steps.
 
-## ⚡ TL;DR - Deploy in 5 Minutes
+## ⚡ TL;DR - Deploy in 3 Minutes (No API Keys Needed!)
 
-1. **Get AssemblyAI API Key** (2 min)
-   - Go to https://www.assemblyai.com/
-   - Sign up (free account)
-   - Copy API key from dashboard
-
-2. **Deploy to Vercel** (2 min)
+1. **Deploy to Vercel** (2 min)
    - Go to https://vercel.com/dashboard
    - Import your GitHub repository
-   - Add environment variables:
+   - Add environment variable:
      - `TELEGRAM_BOT_TOKEN` = `8710987121:AAHFXQX2FJCOvx25gWzJdKi5w2qyGCHtfEY`
-     - `ASSEMBLYAI_API_KEY` = Your AssemblyAI key
    - Click Deploy
 
-3. **Configure Webhook** (30 sec)
+2. **Configure Webhook** (30 sec)
    - After deployment, visit: `https://YOUR_VERCEL_URL/api/setup-webhook`
    - Webhook is automatically configured
 
-4. **Test Your Bot** (30 sec)
+3. **Test Your Bot** (30 sec)
    - Find your bot on Telegram
    - Send `/start`
    - Send a voice message or audio file
    - Get Persian transcription! ✅
 
+**That's it!** No API keys, no credentials, no sign-ups needed. Uses Google's free Speech Recognition API like your Python version.
+
 ## 📚 Documentation Structure
 
 ### Quick Path (If You Know What You're Doing)
-1. [QUICKSTART.md](./QUICKSTART.md) - 5-minute deployment guide
+1. [QUICKSTART.md](./QUICKSTART.md) - 3-minute deployment guide
 
 ### Standard Path (Most Users)
 1. [README.md](./README.md) - Complete overview
 2. [SETUP.md](./SETUP.md) - Detailed setup instructions
-3. [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) - Step-by-step verification
 
 ### Deep Dive Path (For Understanding Everything)
 1. [PROJECT_SUMMARY.md](./PROJECT_SUMMARY.md) - What was built
-2. [CONFIGURATION.md](./CONFIGURATION.md) - Environment variables and settings
-3. [DEPLOYMENT_FLOW.md](./DEPLOYMENT_FLOW.md) - Architecture and data flow
+2. [DEPLOYMENT_FLOW.md](./DEPLOYMENT_FLOW.md) - Architecture and data flow
 
 ## 🎯 What Has Been Created
 
 Your project is now a **Next.js application** with:
 - ✅ Telegram bot webhook handler
 - ✅ Audio file processing
-- ✅ AssemblyAI speech-to-text integration
+- ✅ Google's free Speech Recognition API (same as Python code)
+- ✅ Persian (Farsi) transcription support
 - ✅ Serverless deployment on Vercel
-- ✅ Full documentation
+- ✅ Zero credentials needed!
 
 ## 🔑 Your Bot Details
 
 | Item | Value |
 |------|-------|
 | **Bot Token** | `8710987121:AAHFXQX2FJCOvx25gWzJdKi5w2qyGCHtfEY` |
-| **Language** | Persian (Farsi) |
+| **Language** | Persian/Farsi (fa-IR) |
+| **Transcription** | Google's free Speech Recognition API |
 | **Deployment** | Vercel (serverless) |
 | **Framework** | Next.js 16 (TypeScript) |
+| **API Keys Needed** | None! ✅ |
 
 ## ❓ Which Documentation Should I Read?
 
@@ -94,7 +91,8 @@ Your project is now a **Next.js application** with:
 │                           ↓                                 │
 │  Bot downloads audio file                                  │
 │                           ↓                                 │
-│  AssemblyAI transcribes to Persian text                   │
+│  Google's free Speech Recognition API transcribes          │
+│  audio to Persian text (same as Python code!)              │
 │                           ↓                                 │
 │  Bot sends transcription back to user                      │
 │                           ↓                                 │
@@ -106,9 +104,9 @@ Your project is now a **Next.js application** with:
 
 ### To Deploy
 - [ ] Vercel account (https://vercel.com - free)
-- [ ] GitHub account (to push code)
-- [ ] AssemblyAI API key (https://assemblyai.com - free tier)
-- [ ] 10 minutes
+- [ ] GitHub account (code already pushed)
+- [ ] 5 minutes
+- ✅ That's it! No API keys needed
 
 ### To Test
 - [ ] Telegram app installed
@@ -152,49 +150,36 @@ Once deployed, your bot can:
 
 ## 🚦 Quick Start Steps
 
-### 1. Get AssemblyAI Key (Required)
-```bash
-# Visit: https://www.assemblyai.com/
-# Click: Sign up
-# Follow: Create account
-# Result: Copy API key from dashboard
-```
-
-### 2. Push Code (If Not Already Done)
-```bash
-cd telegram-transcriber-bot
-git add .
-git commit -m "Telegram bot implementation"
-git push origin main
-```
-
-### 3. Deploy to Vercel
+### 1. Deploy to Vercel (No API Keys Needed!)
 ```bash
 # Via Web:
 # 1. Go to https://vercel.com/dashboard
 # 2. Click "Add New..." → "Project"
 # 3. Import your GitHub repository
-# 4. Add environment variables
+# 4. Add environment variable:
+#    - TELEGRAM_BOT_TOKEN = 8710987121:AAHFXQX2FJCOvx25gWzJdKi5w2qyGCHtfEY
 # 5. Click "Deploy"
+# 6. Wait for deployment to complete
 ```
 
-### 4. Set Webhook
+### 2. Set Webhook
 ```bash
-# Visit this URL in browser (after deployment):
+# After deployment, visit in browser:
 https://YOUR_VERCEL_URL/api/setup-webhook
 
-# Or use curl:
-curl -X POST https://YOUR_VERCEL_URL/api/setup-webhook
+# You'll see a success message confirming the webhook is set
 ```
 
-### 5. Test Bot
+### 3. Test Bot
 ```bash
 # On Telegram:
-# 1. Search for your bot
-# 2. Send: /start
+# 1. Find your bot (search for @your_bot_username)
+# 2. Send: /start (see welcome message)
 # 3. Send: a voice message or audio file
 # 4. Receive: Persian transcription ✅
 ```
+
+That's it! Your bot is live!
 
 ## 🆘 Something Goes Wrong?
 
@@ -235,22 +220,20 @@ curl -X POST https://YOUR_VERCEL_URL/api/setup-webhook
 
 **Right now, you should:**
 
-1. **Get AssemblyAI API key** (2 minutes)
-   - Go to https://www.assemblyai.com/
-   - Sign up and copy your key
-
-2. **Deploy to Vercel** (2 minutes)
-   - Add TELEGRAM_BOT_TOKEN and ASSEMBLYAI_API_KEY
+1. **Deploy to Vercel** (2 minutes)
+   - Add only: TELEGRAM_BOT_TOKEN
    - Click Deploy
 
-3. **Set webhook** (30 seconds)
-   - Visit `/api/setup-webhook` endpoint
+2. **Set webhook** (30 seconds)
+   - Visit `/api/setup-webhook` endpoint after deployment
 
-4. **Test on Telegram** (1 minute)
+3. **Test on Telegram** (1 minute)
    - Send voice message to bot
    - Get Persian transcription
 
-**Total time: ~5-10 minutes to full deployment!**
+**Total time: ~3-5 minutes to full deployment!**
+
+No API key sign-ups or credentials needed! 🎉
 
 ## 🎓 Learning Resources
 

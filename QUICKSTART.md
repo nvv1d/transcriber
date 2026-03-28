@@ -1,15 +1,8 @@
 # Quick Start Guide
 
-## 🚀 Deploy in 5 Minutes
+## 🚀 Deploy in 3 Minutes (No API Keys Needed!)
 
-### 1. Get AssemblyAI API Key
-```bash
-# Go to https://www.assemblyai.com/
-# Sign up (free tier available)
-# Copy your API key
-```
-
-### 2. Deploy to Vercel
+### 1. Deploy to Vercel
 ```bash
 git push origin main
 ```
@@ -18,10 +11,11 @@ Then:
 1. Go to https://vercel.com/dashboard
 2. Click "Import Project"
 3. Select your repository
-4. Add Environment Variables:
+4. Add Environment Variable:
    - `TELEGRAM_BOT_TOKEN` = `8710987121:AAHFXQX2FJCOvx25gWzJdKi5w2qyGCHtfEY`
-   - `ASSEMBLYAI_API_KEY` = Your AssemblyAI key
 5. Click Deploy
+
+That's it! No other API keys needed. The bot uses Google's free Speech Recognition API just like the Python version.
 
 ### 3. Set Webhook (After Deployment)
 Once your Vercel app is live:

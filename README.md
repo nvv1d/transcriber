@@ -20,31 +20,29 @@ Telegram sends webhook to Vercel
          ↓
 Bot downloads audio file
          ↓
-AssemblyAI transcribes to Persian
+Google's free Speech Recognition API transcribes to Persian (fa-IR)
          ↓
 Bot sends transcription back to user
 ```
+
+**Note**: Uses the same free Google Speech Recognition API as the original Python code. No API keys or credentials needed!
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 18+
 - Telegram Bot Token (provided: `8710987121:AAHFXQX2FJCOvx25gWzJdKi5w2qyGCHtfEY`)
-- AssemblyAI API key (free at https://www.assemblyai.com/)
 - Vercel account (free tier available)
+
+That's it! No API keys needed - uses Google's free Speech Recognition API like the Python version.
 
 ### Quick Deploy
 
-1. **Get AssemblyAI API Key**
-   - Sign up at https://www.assemblyai.com/
-   - Copy your API key from dashboard
-
-2. **Deploy to Vercel**
+1. **Deploy to Vercel**
    - Push code to GitHub
    - Import in Vercel dashboard
-   - Add environment variables:
+   - Add environment variable:
      - `TELEGRAM_BOT_TOKEN`: `8710987121:AAHFXQX2FJCOvx25gWzJdKi5w2qyGCHtfEY`
-     - `ASSEMBLYAI_API_KEY`: Your API key
 
 3. **Set Webhook**
    ```bash

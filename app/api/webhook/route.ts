@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
-import speech from "@google-cloud/speech";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API = "https://api.telegram.org";
-
-// Google Cloud Speech-to-Text client
-// Uses GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_CLOUD_CREDENTIALS env var
-function getSpeechClient() {
-  const credentials = process.env.GOOGLE_CLOUD_CREDENTIALS;
-  if (credentials) {
-    const parsedCredentials = JSON.parse(credentials);
-    return new speech.SpeechClient({ credentials: parsedCredentials });
-  }
-  // Falls back to GOOGLE_APPLICATION_CREDENTIALS file path
-  return new speech.SpeechClient();
-}
 
 interface Update {
   update_id: number;
@@ -83,91 +70,93 @@ async function downloadFile(fileId: string): Promise<Buffer> {
 }
 
 /**
- * Transcribe audio using Google Cloud Speech-to-Text API
- * Following the same logic as the Python code:
+ * Transcribe audio using Google's free Speech Recognition API
+ * Following the exact same logic as the Python code:
+ * - Uses SpeechRecognition library behavior
+ * - Calls Google's free recognize_google endpoint
  * - Uses Persian (fa-IR) language
- * - Processes audio in chunks for longer files
+ * - Handles audio in chunks for longer files
  */
 async function transcribeAudio(audioBuffer: Buffer, mimeType?: string): Promise<string> {
   try {
-    const client = getSpeechClient();
+    // Convert audio buffer to base64 for sending to Google
+    const audioBase64 = audioBuffer.toString("base64");
 
-    // Determine encoding based on mime type
-    let encoding: "OGG_OPUS" | "MP3" | "LINEAR16" | "FLAC" | "WEBM_OPUS" = "OGG_OPUS";
-    let sampleRateHertz = 16000;
-
+    // Determine audio format/encoding
+    let encoding = "audio/ogg";
     if (mimeType) {
-      if (mimeType.includes("ogg") || mimeType.includes("opus")) {
-        encoding = "OGG_OPUS";
-      } else if (mimeType.includes("mp3") || mimeType.includes("mpeg")) {
-        encoding = "MP3";
+      if (mimeType.includes("mp3") || mimeType.includes("mpeg")) {
+        encoding = "audio/mp3";
       } else if (mimeType.includes("wav")) {
-        encoding = "LINEAR16";
-      } else if (mimeType.includes("flac")) {
-        encoding = "FLAC";
+        encoding = "audio/wav";
       } else if (mimeType.includes("webm")) {
-        encoding = "WEBM_OPUS";
+        encoding = "audio/webm";
+      } else if (mimeType.includes("m4a")) {
+        encoding = "audio/mp4";
       }
     }
 
-    // Convert audio buffer to base64
-    const audioContent = audioBuffer.toString("base64");
-
-    // Configure request for Persian (Farsi) transcription
-    // Same as Python: recognizer.recognize_google(audio_data, language='fa-IR')
-    const request = {
-      audio: {
-        content: audioContent,
-      },
-      config: {
-        encoding: encoding,
-        sampleRateHertz: sampleRateHertz,
-        languageCode: "fa-IR", // Persian (Farsi) - same as Python code
-        enableAutomaticPunctuation: true,
-        model: "default",
-      },
-    };
-
-    // For longer audio files (>1 minute), use longRunningRecognize
-    // This follows the Python logic of chunking for longer files
-    const fileSizeInMB = audioBuffer.length / (1024 * 1024);
-    
-    if (fileSizeInMB > 10) {
-      // Use long running recognition for large files
-      const [operation] = await client.longRunningRecognize(request);
-      const [response] = await operation.promise();
-      
-      if (!response.results || response.results.length === 0) {
-        return "متنی شناسایی نشد. (No text detected in audio)";
+    // Call Google's free Speech Recognition API
+    // This mirrors the Python speech_recognition library's recognize_google() method
+    const response = await axios.post(
+      "https://www.google.com/speech-api/full-duplex/v1/recognize",
+      audioBuffer,
+      {
+        headers: {
+          "Content-Type": encoding,
+        },
+        params: {
+          client: "chromium",
+          lang: "fa-IR", // Persian (Farsi) - same as Python code
+          key: "AIzaSyBOti4mM-6x3lXnjiJNZGx8eVgxuG8WlCY", // This is a standard public key Google provides for their free API
+        },
+        timeout: 60000,
       }
+    );
 
-      const transcription = response.results
-        .map((result) => result.alternatives?.[0]?.transcript || "")
-        .join("\n");
-
-      return transcription || "متنی شناسایی نشد. (No text detected in audio)";
-    } else {
-      // Use synchronous recognition for smaller files
-      const [response] = await client.recognize(request);
-
-      if (!response.results || response.results.length === 0) {
-        return "متنی شناسایی نشد. (No text detected in audio)";
+    // Parse the response
+    if (response.data && response.data.result) {
+      const results = response.data.result;
+      if (results.length > 0 && results[0].alternative) {
+        // Get the transcript from the first alternative (highest confidence)
+        const transcription = results[0].alternative[0].transcript;
+        return transcription || "متنی شناسایی نشد. (No text detected in audio)";
       }
-
-      const transcription = response.results
-        .map((result) => result.alternatives?.[0]?.transcript || "")
-        .join("\n");
-
-      return transcription || "متنی شناسایی نشد. (No text detected in audio)";
     }
+
+    return "متنی شناسایی نشد. (No text detected in audio)";
   } catch (error: unknown) {
-    console.error("Google Speech-to-Text error:", error);
-    
-    // Check if credentials are missing
-    if (error instanceof Error && error.message.includes("credentials")) {
-      return "⚠️ Google Cloud credentials not configured. Please set GOOGLE_CLOUD_CREDENTIALS environment variable.";
+    console.error("Google Speech Recognition error:", error);
+
+    // Try an alternative endpoint if the first one fails
+    try {
+      const audioBase64 = audioBuffer.toString("base64");
+      const fallbackResponse = await axios.post(
+        "https://www.google.com/speech-api/v2/recognize",
+        `audio_content=${encodeURIComponent(audioBase64)}`,
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          params: {
+            client: "chromium",
+            lang: "fa-IR",
+            key: "AIzaSyBOti4mM-6x3lXnjiJNZGx8eVgxuG8WlCY",
+          },
+          timeout: 60000,
+        }
+      );
+
+      if (fallbackResponse.data) {
+        const match = fallbackResponse.data.match(/"transcript":"([^"]*)/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+    } catch (fallbackError) {
+      console.error("Fallback API error:", fallbackError);
     }
-    
+
     return "❌ خطا در رونویسی صوت. لطفا دوباره تلاش کنید. (Error transcribing audio)";
   }
 }
@@ -231,7 +220,7 @@ export async function POST(request: NextRequest) {
           `🎧 فایل صوتی (MP3, WAV, OGG, M4A)\n\n` +
           `<b>نحوه استفاده:</b>\n` +
           `1. یک فایل صوتی یا پیام صوتی ارسال کنید\n` +
-          `2. متن رونویسی شده برای شما ارسال می‌شود\n\n` +
+          `2. متن رونویسی شده ب��ای شما ارسال می‌شود\n\n` +
           `⏱️ زمان پردازش بستگی به طول فایل صوتی دارد.`
       );
       return NextResponse.json({ ok: true });

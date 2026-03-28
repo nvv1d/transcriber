@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API = "https://api.telegram.org";
+const webhookUrl = body.webhookUrl || "https://transcriber-nine-steel.vercel.app/api/webhook";
 
 export async function POST(request: NextRequest) {
   try {

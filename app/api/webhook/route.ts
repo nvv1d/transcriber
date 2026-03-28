@@ -87,7 +87,7 @@ async function transcribeAudio(audioBuffer: Buffer, language: string): Promise<s
       headers: {
         "Content-Type": "audio/l16; rate=16000",
       },
-      body: audioBuffer,
+      body: new Uint8Array(audioBuffer),
     });
 
     const text = await response.text();

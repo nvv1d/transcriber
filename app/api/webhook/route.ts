@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
-import * as fs from "fs";
-import * as path from "path";
+import speech from "@google-cloud/speech";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API = "https://api.telegram.org";
+
+// Google Cloud Speech-to-Text client
+// Uses GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_CLOUD_CREDENTIALS env var
+function getSpeechClient() {
+  const credentials = process.env.GOOGLE_CLOUD_CREDENTIALS;
+  if (credentials) {
+    const parsedCredentials = JSON.parse(credentials);
+    return new speech.SpeechClient({ credentials: parsedCredentials });
+  }
+  // Falls back to GOOGLE_APPLICATION_CREDENTIALS file path
+  return new speech.SpeechClient();
+}
 
 interface Update {
   update_id: number;
@@ -35,14 +46,18 @@ interface Update {
       mime_type?: string;
       file_size?: number;
     };
+    document?: {
+      file_id: string;
+      file_unique_id: string;
+      file_name?: string;
+      mime_type?: string;
+      file_size?: number;
+    };
     text?: string;
   };
 }
 
-async function downloadFile(
-  fileId: string,
-  fileName: string
-): Promise<Buffer> {
+async function downloadFile(fileId: string): Promise<Buffer> {
   try {
     // Get file path from Telegram
     const getFileResponse = await axios.get(
@@ -67,72 +82,93 @@ async function downloadFile(
   }
 }
 
-async function transcribeAudio(audioBuffer: Buffer): Promise<string> {
+/**
+ * Transcribe audio using Google Cloud Speech-to-Text API
+ * Following the same logic as the Python code:
+ * - Uses Persian (fa-IR) language
+ * - Processes audio in chunks for longer files
+ */
+async function transcribeAudio(audioBuffer: Buffer, mimeType?: string): Promise<string> {
   try {
-    // Using AssemblyAI API for transcription
-    // This is a more reliable alternative that works server-side
-    const API_TOKEN = process.env.ASSEMBLYAI_API_KEY;
+    const client = getSpeechClient();
 
-    if (!API_TOKEN) {
-      // Fallback: Use Web Speech API via a different service
-      // For now, return a message asking user to set up AssemblyAI
-      return "⚠️ Transcription service not configured. Please set ASSEMBLYAI_API_KEY environment variable.";
+    // Determine encoding based on mime type
+    let encoding: "OGG_OPUS" | "MP3" | "LINEAR16" | "FLAC" | "WEBM_OPUS" = "OGG_OPUS";
+    let sampleRateHertz = 16000;
+
+    if (mimeType) {
+      if (mimeType.includes("ogg") || mimeType.includes("opus")) {
+        encoding = "OGG_OPUS";
+      } else if (mimeType.includes("mp3") || mimeType.includes("mpeg")) {
+        encoding = "MP3";
+      } else if (mimeType.includes("wav")) {
+        encoding = "LINEAR16";
+      } else if (mimeType.includes("flac")) {
+        encoding = "FLAC";
+      } else if (mimeType.includes("webm")) {
+        encoding = "WEBM_OPUS";
+      }
     }
 
-    // Upload audio file
-    const uploadResponse = await axios.post(
-      "https://api.assemblyai.com/v2/upload",
-      audioBuffer,
-      {
-        headers: {
-          Authorization: API_TOKEN,
-        },
-      }
-    );
+    // Convert audio buffer to base64
+    const audioContent = audioBuffer.toString("base64");
 
-    const uploadUrl = uploadResponse.data.upload_url;
-
-    // Create transcription job
-    const transcriptResponse = await axios.post(
-      "https://api.assemblyai.com/v2/transcript",
-      {
-        audio_url: uploadUrl,
-        language_code: "fa",
+    // Configure request for Persian (Farsi) transcription
+    // Same as Python: recognizer.recognize_google(audio_data, language='fa-IR')
+    const request = {
+      audio: {
+        content: audioContent,
       },
-      {
-        headers: {
-          Authorization: API_TOKEN,
-        },
+      config: {
+        encoding: encoding,
+        sampleRateHertz: sampleRateHertz,
+        languageCode: "fa-IR", // Persian (Farsi) - same as Python code
+        enableAutomaticPunctuation: true,
+        model: "default",
+      },
+    };
+
+    // For longer audio files (>1 minute), use longRunningRecognize
+    // This follows the Python logic of chunking for longer files
+    const fileSizeInMB = audioBuffer.length / (1024 * 1024);
+    
+    if (fileSizeInMB > 10) {
+      // Use long running recognition for large files
+      const [operation] = await client.longRunningRecognize(request);
+      const [response] = await operation.promise();
+      
+      if (!response.results || response.results.length === 0) {
+        return "متنی شناسایی نشد. (No text detected in audio)";
       }
-    );
 
-    const transcriptId = transcriptResponse.data.id;
+      const transcription = response.results
+        .map((result) => result.alternatives?.[0]?.transcript || "")
+        .join("\n");
 
-    // Poll for completion
-    let transcript = transcriptResponse.data;
-    while (transcript.status !== "completed" && transcript.status !== "error") {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return transcription || "متنی شناسایی نشد. (No text detected in audio)";
+    } else {
+      // Use synchronous recognition for smaller files
+      const [response] = await client.recognize(request);
 
-      const checkResponse = await axios.get(
-        `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
-        {
-          headers: {
-            Authorization: API_TOKEN,
-          },
-        }
-      );
+      if (!response.results || response.results.length === 0) {
+        return "متنی شناسایی نشد. (No text detected in audio)";
+      }
 
-      transcript = checkResponse.data;
+      const transcription = response.results
+        .map((result) => result.alternatives?.[0]?.transcript || "")
+        .join("\n");
+
+      return transcription || "متنی شناسایی نشد. (No text detected in audio)";
     }
-
-    if (transcript.status === "error") {
-      return "❌ Error transcribing audio. Please try again.";
+  } catch (error: unknown) {
+    console.error("Google Speech-to-Text error:", error);
+    
+    // Check if credentials are missing
+    if (error instanceof Error && error.message.includes("credentials")) {
+      return "⚠️ Google Cloud credentials not configured. Please set GOOGLE_CLOUD_CREDENTIALS environment variable.";
     }
-
-    return transcript.text || "No text detected in audio.";
-  } catch (error) {
-    console.error("Transcription error:", error);
-    return "❌ Error during transcription. Please try again later.";
+    
+    return "❌ خطا در رونویسی صوت. لطفا دوباره تلاش کنید. (Error transcribing audio)";
   }
 }
 
@@ -148,10 +184,7 @@ async function sendMessage(chatId: number, text: string): Promise<void> {
   }
 }
 
-async function sendChatAction(
-  chatId: number,
-  action: string
-): Promise<void> {
+async function sendChatAction(chatId: number, action: string): Promise<void> {
   try {
     await axios.post(`${TELEGRAM_API}/bot${BOT_TOKEN}/sendChatAction`, {
       chat_id: chatId,
@@ -160,6 +193,17 @@ async function sendChatAction(
   } catch (error) {
     console.error("Error sending chat action:", error);
   }
+}
+
+function escapeHtml(text: string): string {
+  const map: { [key: string]: string } = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 
 export async function POST(request: NextRequest) {
@@ -172,73 +216,61 @@ export async function POST(request: NextRequest) {
 
     const message = body.message;
     const chatId = message.chat.id;
-    const userId = message.from.id;
     const firstName = message.from.first_name;
-
-    console.log(`[v0] Received message from ${firstName} (${userId})`);
 
     // Handle /start command
     if (message.text === "/start") {
       await sendMessage(
         chatId,
-        `<b>👋 Welcome to Audio Transcriber Bot!</b>\n\n` +
+        `<b>سلام ${escapeHtml(firstName)}! به ربات رونویسی صوت خوش آمدید</b>\n\n` +
+          `<b>Welcome to Audio Transcriber Bot!</b>\n\n` +
+          `یک فایل صوتی یا پیام صوتی برای من ارسال کنید تا آن را به متن فارسی تبدیل کنم.\n\n` +
           `Send me any audio file or voice message and I'll transcribe it to Persian (Farsi) text.\n\n` +
-          `<b>Supported formats:</b>\n` +
-          `🎵 Voice messages\n` +
-          `🎧 Audio files (MP3, WAV, OGG, etc.)\n\n` +
-          `<b>How to use:</b>\n` +
-          `1. Send me an audio file or voice message\n` +
-          `2. I'll transcribe it and send back the text\n\n` +
-          `⏱️ Processing time depends on audio length.`
+          `<b>فرمت‌های پشتیبانی شده:</b>\n` +
+          `🎤 پیام صوتی (Voice messages)\n` +
+          `🎧 فایل صوتی (MP3, WAV, OGG, M4A)\n\n` +
+          `<b>نحوه استفاده:</b>\n` +
+          `1. یک فایل صوتی یا پیام صوتی ارسال کنید\n` +
+          `2. متن رونویسی شده برای شما ارسال می‌شود\n\n` +
+          `⏱️ زمان پردازش بستگی به طول فایل صوتی دارد.`
       );
       return NextResponse.json({ ok: true });
     }
 
-    // Handle help command
+    // Handle /help command
     if (message.text === "/help") {
       await sendMessage(
         chatId,
-        `<b>📖 Help</b>\n\n` +
+        `<b>📖 راهنما / Help</b>\n\n` +
+          `یک فایل صوتی ارسال کنید تا آن را به متن فارسی تبدیل کنم.\n` +
           `Send me any audio file and I'll transcribe it to Persian text.\n\n` +
-          `<b>Commands:</b>\n` +
-          `/start - Show welcome message\n` +
-          `/help - Show this help message\n\n` +
-          `<b>Example:</b>\n` +
-          `Just send a voice message or audio file!`
+          `<b>دستورات / Commands:</b>\n` +
+          `/start - نمایش پیام خوش‌آمدگویی\n` +
+          `/help - نمایش این راهنما\n\n` +
+          `<b>نکته:</b> برای بهترین نتیجه، از صدای واضح با حداقل نویز استفاده کنید.\n` +
+          `<b>Tip:</b> For best results, use clear audio with minimal background noise.`
       );
       return NextResponse.json({ ok: true });
     }
 
     // Handle voice messages
     if (message.voice) {
-      console.log(
-        `[v0] Processing voice message from ${firstName}, duration: ${message.voice.duration}s`
-      );
-
       await sendChatAction(chatId, "typing");
-      await sendMessage(chatId, "🎤 Processing your audio...");
+      await sendMessage(chatId, "🎤 در حال پردازش صوت شما...\nProcessing your audio...");
 
       try {
-        const audioBuffer = await downloadFile(
-          message.voice.file_id,
-          `voice_${Date.now()}.ogg`
-        );
-        console.log(
-          `[v0] Downloaded voice file, size: ${audioBuffer.length} bytes`
-        );
-
-        const transcription = await transcribeAudio(audioBuffer);
-        console.log(`[v0] Transcription complete: ${transcription.substring(0, 50)}...`);
+        const audioBuffer = await downloadFile(message.voice.file_id);
+        const transcription = await transcribeAudio(audioBuffer, message.voice.mime_type);
 
         await sendMessage(
           chatId,
-          `<b>📝 Transcription:</b>\n\n<pre>${escapeHtml(transcription)}</pre>`
+          `<b>📝 متن رونویسی شده / Transcription:</b>\n\n${escapeHtml(transcription)}`
         );
       } catch (error) {
-        console.error("[v0] Voice processing error:", error);
+        console.error("Voice processing error:", error);
         await sendMessage(
           chatId,
-          "❌ Error processing voice message. Please try again."
+          "❌ خطا در پردازش پیام صوتی. لطفا دوباره تلاش کنید.\nError processing voice message. Please try again."
         );
       }
 
@@ -247,70 +279,82 @@ export async function POST(request: NextRequest) {
 
     // Handle audio files
     if (message.audio) {
-      console.log(
-        `[v0] Processing audio file from ${firstName}, duration: ${message.audio.duration}s`
-      );
-
       await sendChatAction(chatId, "typing");
-      await sendMessage(chatId, "🎧 Processing your audio file...");
+      await sendMessage(chatId, "🎧 در حال پردازش فایل صوتی شما...\nProcessing your audio file...");
 
       try {
-        const audioBuffer = await downloadFile(
-          message.audio.file_id,
-          `audio_${Date.now()}.mp3`
-        );
-        console.log(
-          `[v0] Downloaded audio file, size: ${audioBuffer.length} bytes`
-        );
-
-        const transcription = await transcribeAudio(audioBuffer);
-        console.log(`[v0] Transcription complete: ${transcription.substring(0, 50)}...`);
+        const audioBuffer = await downloadFile(message.audio.file_id);
+        const transcription = await transcribeAudio(audioBuffer, message.audio.mime_type);
 
         await sendMessage(
           chatId,
-          `<b>📝 Transcription:</b>\n\n<pre>${escapeHtml(transcription)}</pre>`
+          `<b>📝 متن رونویسی شده / Transcription:</b>\n\n${escapeHtml(transcription)}`
         );
       } catch (error) {
-        console.error("[v0] Audio processing error:", error);
+        console.error("Audio processing error:", error);
         await sendMessage(
           chatId,
-          "❌ Error processing audio file. Please try again."
+          "❌ خطا در پردازش فایل صوتی. لطفا دوباره تلاش کنید.\nError processing audio file. Please try again."
         );
       }
 
       return NextResponse.json({ ok: true });
     }
 
+    // Handle document files (audio sent as document)
+    if (message.document) {
+      const mimeType = message.document.mime_type || "";
+      const isAudio = mimeType.includes("audio") || 
+                      mimeType.includes("ogg") || 
+                      mimeType.includes("mp3") ||
+                      mimeType.includes("wav") ||
+                      mimeType.includes("m4a") ||
+                      mimeType.includes("mpeg");
+
+      if (isAudio) {
+        await sendChatAction(chatId, "typing");
+        await sendMessage(chatId, "🎧 در حال پردازش فایل صوتی شما...\nProcessing your audio file...");
+
+        try {
+          const audioBuffer = await downloadFile(message.document.file_id);
+          const transcription = await transcribeAudio(audioBuffer, mimeType);
+
+          await sendMessage(
+            chatId,
+            `<b>📝 متن رونویسی شده / Transcription:</b>\n\n${escapeHtml(transcription)}`
+          );
+        } catch (error) {
+          console.error("Document audio processing error:", error);
+          await sendMessage(
+            chatId,
+            "❌ خطا در پردازش فایل صوتی. لطفا دوباره تلاش کنید.\nError processing audio file. Please try again."
+          );
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     // Default response for text messages
-    if (message.text) {
+    if (message.text && !message.text.startsWith("/")) {
       await sendMessage(
         chatId,
-        "🎵 Please send me an audio file or voice message to transcribe!"
+        "🎵 لطفا یک فایل صوتی یا پیام صوتی برای رونویسی ارسال کنید!\nPlease send me an audio file or voice message to transcribe!"
       );
       return NextResponse.json({ ok: true });
     }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[v0] Webhook error:", error);
+    console.error("Webhook error:", error);
     return NextResponse.json({ ok: false, error: "Internal server error" });
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   return NextResponse.json({
     status: "Bot is running",
-    message: "Send audio files to the bot on Telegram",
+    message: "Send audio files to the bot on Telegram for Persian transcription using Google Speech-to-Text",
+    language: "fa-IR (Persian/Farsi)",
   });
-}
-
-function escapeHtml(text: string): string {
-  const map: { [key: string]: string } = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
 }

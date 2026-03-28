@@ -28,6 +28,9 @@ export default function Home() {
         <p style={{ fontSize: "14px", opacity: "0.8" }}>
           Send your bot an audio file on Telegram to transcribe it to Persian text.
         </p>
+        <p style={{ fontSize: "12px", opacity: "0.6", marginTop: "10px" }}>
+          Powered by Google Speech-to-Text API (fa-IR)
+        </p>
       </div>
     </div>
   );

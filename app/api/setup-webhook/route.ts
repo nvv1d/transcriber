@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API = "https://api.telegram.org";
@@ -13,28 +12,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the webhook URL from request body or environment
     const body = await request.json().catch(() => ({}));
-    const webhookUrl =
-      body.webhookUrl ||
-      `${request.headers.get("origin")}/api/webhook`;
+    const origin = request.headers.get("origin") || request.headers.get("host");
+    const protocol = origin?.includes("localhost") ? "http" : "https";
+    const webhookUrl = body.webhookUrl || `${protocol}://${origin}/api/webhook`;
 
-    console.log(`[v0] Setting webhook to: ${webhookUrl}`);
-
-    // Set webhook
-    const response = await axios.post(
+    const response = await fetch(
       `${TELEGRAM_API}/bot${BOT_TOKEN}/setWebhook`,
       {
-        url: webhookUrl,
-        allowed_updates: ["message"],
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: webhookUrl,
+          allowed_updates: ["message", "callback_query"],
+        }),
       }
     );
 
-    if (!response.data.ok) {
-      throw new Error(response.data.description);
-    }
+    const data = await response.json();
 
-    console.log(`[v0] Webhook set successfully`);
+    if (!data.ok) {
+      throw new Error(data.description);
+    }
 
     return NextResponse.json({
       ok: true,
@@ -42,11 +41,9 @@ export async function POST(request: NextRequest) {
       webhookUrl: webhookUrl,
     });
   } catch (error) {
-    console.error("[v0] Webhook setup error:", error);
+    console.error("Webhook setup error:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
@@ -56,23 +53,31 @@ export async function GET(request: NextRequest) {
   try {
     if (!BOT_TOKEN) {
       return NextResponse.json(
-        { error: "TELEGRAM_BOT_TOKEN not set" },
+        { error: "TELEGRAM_BOT_TOKEN not set", setup: "Add TELEGRAM_BOT_TOKEN environment variable" },
         { status: 400 }
       );
     }
 
-    // Get webhook info
-    const response = await axios.get(
+    const infoResponse = await fetch(
       `${TELEGRAM_API}/bot${BOT_TOKEN}/getWebhookInfo`
     );
+    const infoData = await infoResponse.json();
 
-    return NextResponse.json(response.data.result);
+    const origin = request.headers.get("host");
+    const expectedUrl = `https://${origin}/api/webhook`;
+
+    return NextResponse.json({
+      currentWebhook: infoData.result,
+      expectedUrl: expectedUrl,
+      isConfigured: infoData.result?.url === expectedUrl,
+      instructions: infoData.result?.url 
+        ? "Webhook is configured. Send POST to this endpoint to update it."
+        : "Webhook not set. Send POST to this endpoint to configure it.",
+    });
   } catch (error) {
-    console.error("[v0] Error getting webhook info:", error);
+    console.error("Error getting webhook info:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

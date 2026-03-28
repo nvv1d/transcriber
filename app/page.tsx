@@ -26,10 +26,13 @@ export default function Home() {
           Active and listening on Telegram
         </p>
         <p style={{ fontSize: "14px", opacity: "0.8" }}>
-          Send your bot an audio file on Telegram to transcribe it to Persian text.
+          Send audio files to transcribe to Persian or English text.
         </p>
         <p style={{ fontSize: "12px", opacity: "0.6", marginTop: "10px" }}>
-          Powered by Google Speech-to-Text API (fa-IR)
+          Powered by Google Speech-to-Text API
+        </p>
+        <p style={{ fontSize: "12px", opacity: "0.5", marginTop: "5px" }}>
+          Use /language to switch between Persian and English
         </p>
       </div>
     </div>
